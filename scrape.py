@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 import csv
 import sys
 import datetime
+import re
 
 
 def mysql_quote(x):
@@ -32,17 +33,10 @@ def main():
     rows = soup.find("tbody").find_all("tr")
     for row in rows:
         cols = row.find_all("td")
-        donation_date, donation_date_precision = get_date(cols[0], cols[1])
-        donee = cols[2]
         if cols[3].endswith("AUD"):
-            aud_grants.append({
-
-            })
+            aud_grants.append(sql_tuple(cols))
         else:
-            usd_grants.append({
-            })
-        (amount, amount_original_currency, original_currency) = get_amount(cols[3])
-        notes = cols[4]
+            usd_grants.append(sql_tuple(cols))
 
     # Print USD grants
     first = True
@@ -62,6 +56,10 @@ def main():
     donor_cause_area_url, notes, affected_countries,
     affected_regions, amount_original_currency, original_currency,
     currency_conversion_date, currency_conversion_basis) values""")
+    for grant in aud_grants:
+        print(("    " if first else "    ,") + grant)
+        first = False
+    print(";")
 
 
 def get_date(year_col, date_col):
@@ -82,12 +80,17 @@ def get_date(year_col, date_col):
     return (date, prec)
 
 
-def get_amount(amount_col):
-    """Get the amount."""
+def get_amount(amount_col, date):
+    """Get the donation amount information as a tuple (amount,
+    original_currency, amount_original_currency, currency_conversion_date). If
+    the original currency is USD, only the first two values are filled."""
     if amount_col.endswith("AUD"):
-        pass
+        m = re.match(r"\$ (\d\+) AUD")
+        return (aud_to_usd(float(m.group(1)), date), "AUD", m.group(1), )
     else:
         assert amount_col.endswith("US")
+        m = re.match(r"\$ (\d\+) US")
+        return (m.group(1), "USD", None, None, None)
 
 
 def aud_to_usd(aud_amount, date):
@@ -97,8 +100,37 @@ def aud_to_usd(aud_amount, date):
     rate = j["rates"]["AUD"]
     return aud_amount / rate
 
-def converted_row():
+
+def sql_tuple(cols):
     """Convert the given row to a SQL tuple."""
+    donation_date, donation_date_precision = get_date(cols[0], cols[1])
+    donee = cols[2]
+    (amount, amount_original_currency, original_currency) = get_amount(cols[3], date)
+    notes = cols[4]
+    original_amount = []
+
+    if cols[3].endswith("AUD"):
+        original_amount = [
+            str(amount),  # amount_original_currency
+            mysql_quote('AUD'),  # original_currency
+            mysql_quote(donation_date),  # currency_conversion_date
+            mysql_quote("Fixer.io"),  # currency_conversion_basis
+        ]
+
+    return ("(" + ",".join([
+        mysql_quote("Michael Dello-Iacovo"),  # donor
+        mysql_quote(donee),  # donee
+        str(amount),  # amount
+        mysql_quote(donation_date),  # donation_date
+        mysql_quote("day"),  # donation_date_precision
+        mysql_quote("donation log"),  # donation_date_basis
+        mysql_quote("FIXME"),  # cause_area
+        mysql_quote("http://www.michaeldello.com/donations-log/"),  # url
+        mysql_quote("FIXME"),  # donor_cause_area_url
+        mysql_quote(notes),  # notes
+        mysql_quote("FIXME"),  # affected_countries
+        mysql_quote("FIXME"),  # affected_regions
+    ] + original_amount) + ")")
 
 if __name__ == "__main__":
     main()
