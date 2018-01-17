@@ -113,7 +113,7 @@ def sql_tuple(cols):
     notes = cols[4]
     original_amount = []
 
-    if cols[3].endswith("AUD"):
+    if original_amount == "AUD":
         original_amount = [
             str(amount_original_currency),  # amount_original_currency
             mysql_quote(original_currency),  # original_currency
@@ -126,7 +126,7 @@ def sql_tuple(cols):
         mysql_quote(donee),  # donee
         str(amount),  # amount
         mysql_quote(donation_date),  # donation_date
-        mysql_quote("day"),  # donation_date_precision
+        mysql_quote(donation_date_precision),  # donation_date_precision
         mysql_quote("donation log"),  # donation_date_basis
         mysql_quote("FIXME"),  # cause_area
         mysql_quote("http://www.michaeldello.com/donations-log/"),  # url
