@@ -32,7 +32,7 @@ def main():
     soup = BeautifulSoup(response.content, "lxml")
     rows = soup.find("tbody").find_all("tr")
     for row in rows:
-        cols = row.find_all("td")
+        cols = list(map(lambda x: x.text.strip(), row.find_all("td")))
         if cols[3].endswith("AUD"):
             aud_grants.append(sql_tuple(cols))
         else:
@@ -64,17 +64,17 @@ def main():
 
 def get_date(year_col, date_col):
     """Get the date in YYYY-MM-DD format."""
-    if date_col == "??":
+    if date_col in ["??", ""]:
         prec = "year"
         date = year_col + "-01-01"
     elif len(date_col) == 3:
         prec = "month"
-        date = (year_col +
+        date = (year_col + "-" +
                 datetime.datetime.strptime(date_col, "%b").strftime("%m-%d") +
                 "-01")
     else:
         prec = "day"
-        date = (year_col +
+        date = (year_col + "-" +
                 datetime.datetime.strptime(date_col, "%b %d").strftime("%m-%d"))
 
     return (date, prec)
@@ -85,12 +85,13 @@ def get_amount(amount_col, date):
     original_currency, amount_original_currency, currency_conversion_date). If
     the original currency is USD, only the first two values are filled."""
     if amount_col.endswith("AUD"):
-        m = re.match(r"\$ (\d\+) AUD")
-        return (aud_to_usd(float(m.group(1)), date), "AUD", m.group(1), )
+        m = re.match(r"\$([0-9,]+) AUD", amount_col)
+        return (aud_to_usd(float(m.group(1).replace(",", "")), date),
+                "AUD", m.group(1), date)
     else:
         assert amount_col.endswith("US")
-        m = re.match(r"\$ (\d\+) US")
-        return (m.group(1), "USD", None, None, None)
+        m = re.match(r"\$([0-9,]+) US", amount_col)
+        return (m.group(1).replace(",", ""), "USD", None, None)
 
 
 def aud_to_usd(aud_amount, date):
@@ -105,15 +106,18 @@ def sql_tuple(cols):
     """Convert the given row to a SQL tuple."""
     donation_date, donation_date_precision = get_date(cols[0], cols[1])
     donee = cols[2]
-    (amount, amount_original_currency, original_currency) = get_amount(cols[3], date)
+    (amount,
+     original_currency,
+     amount_original_currency,
+     currency_conversion_date) = get_amount(cols[3], donation_date)
     notes = cols[4]
     original_amount = []
 
     if cols[3].endswith("AUD"):
         original_amount = [
-            str(amount),  # amount_original_currency
-            mysql_quote('AUD'),  # original_currency
-            mysql_quote(donation_date),  # currency_conversion_date
+            str(amount_original_currency),  # amount_original_currency
+            mysql_quote(original_currency),  # original_currency
+            mysql_quote(currency_conversion_date),  # currency_conversion_date
             mysql_quote("Fixer.io"),  # currency_conversion_basis
         ]
 
