@@ -8,20 +8,6 @@ import datetime
 import re
 
 
-def mysql_quote(x):
-    '''
-    Quote the string x using MySQL quoting rules. If x is the empty string,
-    return "NULL". Probably not safe against maliciously formed strings, but
-    whatever; our input is fixed and from a basically trustable source..
-    '''
-    if not x:
-        return "NULL"
-    x = x.replace("\\", "\\\\")
-    x = x.replace("'", "''")
-    x = x.replace("\n", "\\n")
-    return "'{}'".format(x)
-
-
 def main():
     # We collect USD and AUD grants separately because the latter require more
     # columns to be printed.
@@ -60,6 +46,20 @@ def main():
         print(("    " if first else "    ,") + grant)
         first = False
     print(";")
+
+
+def mysql_quote(x):
+    '''
+    Quote the string x using MySQL quoting rules. If x is the empty string,
+    return "NULL". Probably not safe against maliciously formed strings, but
+    whatever; our input is fixed and from a basically trustable source..
+    '''
+    if not x:
+        return "NULL"
+    x = x.replace("\\", "\\\\")
+    x = x.replace("'", "''")
+    x = x.replace("\n", "\\n")
+    return "'{}'".format(x)
 
 
 def get_date(year_col, date_col):
