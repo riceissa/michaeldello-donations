@@ -70,7 +70,7 @@ def get_date(year_col, date_col):
     elif len(date_col) == 3:
         prec = "month"
         date = (year_col + "-" +
-                datetime.datetime.strptime(date_col, "%b").strftime("%m-%d") +
+                datetime.datetime.strptime(date_col, "%b").strftime("%m") +
                 "-01")
     else:
         prec = "day"
