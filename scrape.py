@@ -88,7 +88,7 @@ def get_amount(amount_col, date):
     if amount_col.endswith("AUD"):
         m = re.match(r"\$([0-9,]+) AUD", amount_col)
         return (aud_to_usd(float(m.group(1).replace(",", "")), date),
-                "AUD", m.group(1), date)
+                "AUD", m.group(1).replace(",", ""), date)
     else:
         assert amount_col.endswith("US")
         m = re.match(r"\$([0-9,]+) US", amount_col)
@@ -114,7 +114,7 @@ def sql_tuple(cols):
     notes = cols[4]
     original_amount = []
 
-    if original_amount == "AUD":
+    if original_currency == "AUD":
         original_amount = [
             str(amount_original_currency),  # amount_original_currency
             mysql_quote(original_currency),  # original_currency
